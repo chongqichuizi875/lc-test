@@ -6,7 +6,6 @@ import time
 import torch
 import torch.distributed as dist
 from prettytable import PrettyTable
-
 def init_dist():
     
     rank = int(os.environ['RANK'])
@@ -71,9 +70,8 @@ class ReduceScatter(CommOp):
 
 class BoradCast(CommOp):
     def __call__(self, tensor: torch.Tensor) -> None:
-        if dist.get_rank() == 0:
-            dist.broadcast(tensor, 0)
-    
+        dist.broadcast(tensor, 0)
+        
     def bw_factor(self):
         return 1 / self.world_size
 
