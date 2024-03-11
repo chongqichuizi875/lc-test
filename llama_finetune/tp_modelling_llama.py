@@ -59,7 +59,8 @@ class ParallelTrainer():
     def train(self):
         
         
-        model = DDP(self.model)
+        model = DDP(self.model,
+                    process_group=get_data_parallel_group())
         
         # 定义优化器和学习率调度器
         optimizer = AdamW(model.parameters(), lr=5e-5)
