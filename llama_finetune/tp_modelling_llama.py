@@ -123,14 +123,14 @@ class ParallelLlama(nn.Module):
 
         for name, module in reduced_model.named_modules():
             if name.endswith("mlp"):
-                # setattr(module, 'gate_proj', RowParallelLinear(module.gate_proj))
-                # setattr(module, 'up_proj', RowParallelLinear(module.up_proj))
+                setattr(module, 'gate_proj', RowParallelLinear(module.gate_proj))
+                setattr(module, 'up_proj', RowParallelLinear(module.up_proj))
                 setattr(module, 'down_proj', ColumnParallelLinear(module.down_proj))
-            # if name.endswith("self_attn"):
-                # setattr(module, 'q_proj', ColumnParallelLinear(module.q_proj))
-                # setattr(module, 'k_proj', ColumnParallelLinear(module.k_proj))
-                # setattr(module, 'v_proj', ColumnParallelLinear(module.v_proj))
-                # setattr(module, 'o_proj', RowParallelLinear(module.o_proj))
+            if name.endswith("self_attn"):
+                setattr(module, 'q_proj', ColumnParallelLinear(module.q_proj))
+                setattr(module, 'k_proj', ColumnParallelLinear(module.k_proj))
+                setattr(module, 'v_proj', ColumnParallelLinear(module.v_proj))
+                setattr(module, 'o_proj', RowParallelLinear(module.o_proj))
 
         return reduced_model
     
