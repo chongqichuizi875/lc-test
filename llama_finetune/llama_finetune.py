@@ -14,9 +14,18 @@ import sys
 sys.path.append('.')
 from datasets import load_dataset
 from tp_modelling_llama import ParallelTrainer
+import os
 
 
 def main():
+    rank = int(os.environ['RANK'])
+    local_rank = int(os.environ['LOCAL_RANK'])
+    world_size = int(os.environ['WORLD_SIZE'])
+    if rank == 0:
+        print("> initializing torch distributed env", flush=True)
+    torch.cuda.set_device(local_rank)
+    dist.init_process_group(world_size=world_size, rank=rank,
+                                init_method="env://", backend="nccl")
     tokenizer = AutoTokenizer.from_pretrained("/home/zhongyuting/model/Llama-2-7b-hf")
     tokenizer.pad_token = tokenizer.eos_token
     with open("small_llama.json", 'r') as f:

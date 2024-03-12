@@ -2,6 +2,12 @@ import torch
 from functools import reduce
 import operator
 
+def set_seed(seed):
+    torch.manual_seed(seed)
+    # if torch.cuda.is_available():
+    #     torch.cuda.manual_seed_all(seed)
+
+
 def gpu_usage(local_rank):
     return torch.cuda.memory_allocated(local_rank) / (1024**2) 
 
