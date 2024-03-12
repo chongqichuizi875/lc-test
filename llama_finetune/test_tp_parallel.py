@@ -28,7 +28,7 @@ configureation = LlamaConfig(**small_llama_config)
 model = AutoModelForCausalLM.from_config(configureation)
 model.config.use_cache = False
 # model.config.pretraining_tp = torch.cuda.device_count()
-tp = 1
+tp = 4
 
 # 微调模型
 trainer = ParallelTrainer(model, tokenizer, gradient_checkpointing=True, mixed_precision=True, tp=tp)
