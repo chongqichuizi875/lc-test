@@ -68,12 +68,12 @@ class ReduceScatter(CommOp):
     def bw_factor(self):
         return (self.world_size - 1) / self.world_size
 
-class BoradCast(CommOp):
+class BroadCast(CommOp):
     def __call__(self, tensor: torch.Tensor) -> None:
         dist.broadcast(tensor, 0)
         
     def bw_factor(self):
-        return 1 / self.world_size
+        return 1
 
 class AllToAll(CommOp):
     def __call__(self, tensor: torch.Tensor) -> None:
@@ -82,13 +82,13 @@ class AllToAll(CommOp):
         dist.all_to_all(out, input_chunks)
     
     def bw_factor(self):
-        return (self.world_size - 1) / self.world_size
+        return 2 * (self.world_size - 1) / self.world_size
 
 OPS = {
     'allreduce': AllReduce,
     'allgather': AllGather,
     'reducescatter': ReduceScatter,
-    'broadcast': BoradCast,
+    'broadcast': BroadCast,
     'alltoall': AllToAll,
 }
 
@@ -148,7 +148,8 @@ def parse_size(s: str) -> int:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-a', '--algorithm', type=str, default='allreduce')
+    parser.add_argument('-a', '--algorithm', type=str, 
+                        default='allreduce', choices=['allreduce','allgather','reducescatter','broadcast','alltoall'])
     parser.add_argument('-b', '--begin', type=str, default='32M')
     parser.add_argument('-e', '--end', type=str, default='32M')
     parser.add_argument('-s', '--step', type=str, default='2M')
