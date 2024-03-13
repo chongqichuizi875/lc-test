@@ -9,17 +9,19 @@ from torch.utils.data import DataLoader, DistributedSampler
 from torch.utils.data.dataset import Dataset
 from typing import List
 import torch.nn.functional as F
-from tp_modelling_llama import ColumnParallelLinear, RowParallelLinear
 import json
 import sys
 import copy
-sys.path.append('.')
 from datasets import load_dataset
-from tp_modelling_llama import ParallelTrainer
-from parallel_state import get_data_parallel_group
-from custom_dataset import SimpleDataset
+from llama_parallel_finetune.trainer import ParallelTrainer
+from llama_parallel_finetune.parallel_state import get_data_parallel_group
+from dataset.custom_dataset import SimpleDataset
 import os
-from utils import set_seed
+import argparse
+from llama_parallel_finetune.utils import set_seed
+parser = argparse.ArgumentParser()
+parser.add_argument('-tp', '--tensor_parallel', type=int, default=1)
+args = parser.parse_args()
 rank = int(os.environ['RANK'])
 local_rank = int(os.environ['LOCAL_RANK'])
 world_size = int(os.environ['WORLD_SIZE'])
@@ -31,13 +33,13 @@ set_seed(42)
 
 tokenizer = AutoTokenizer.from_pretrained("/home/zhongyuting/model/Llama-2-7b-hf")
 tokenizer.pad_token = tokenizer.eos_token
-with open("small_llama.json", 'r') as f:
+with open("configs/small_llama.json", 'r') as f:
     small_llama_config = json.load(f)
 configureation = LlamaConfig(**small_llama_config)
 model = AutoModelForCausalLM.from_config(configureation)
 model.config.use_cache = False
 # model.config.pretraining_tp = torch.cuda.device_count()
-tp = 4
+tp = args.tensor_parallel
 
 # 微调模型
 trainer = ParallelTrainer(model, tokenizer, gradient_checkpointing=True, mixed_precision=True, tp=tp)
@@ -61,9 +63,11 @@ for batch in dataloader:
     outputs = model(input_ids, attention_mask, labels=input_ids)
     parallel_outputs = parallel_model(input_ids, attention_mask, labels=input_ids)
     break
-if local_rank == 0:
-    print(outputs)
-    print(parallel_outputs)
+# if local_rank == 0:
+    # print(outputs)
+    # print(parallel_outputs)
+print(f"loss close {rank}: {torch.allclose(outputs.loss, parallel_outputs.loss, rtol=1e-4, atol=1e-5)}")
+print(f"logits close {rank}: {torch.allclose(outputs.logits, parallel_outputs.logits, rtol=1e-3, atol=1e-4)}")
 
 # for name, module in model.named_modules():
 #     if name.endswith("mlp"):

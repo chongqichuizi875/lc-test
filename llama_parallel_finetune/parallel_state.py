@@ -1,7 +1,7 @@
 import torch
 import torch.distributed as dist
 from typing import Optional
-from utils import GlobalMemoryBuffer
+from llama_parallel_finetune.utils import GlobalMemoryBuffer
 
 # Model parallel group (both intra- and pipeline) that the current rank belongs to.
 _MODEL_PARALLEL_GROUP = None
@@ -59,7 +59,7 @@ def get_global_memory_buffer():
 
 
 def get_tensor_model_parallel_group():
-    assert _TENSOR_MODEL_PARALLEL_GROUP, "_TENSOR_MODEL_PARALLEL_GROUP not set yet"
+    assert _TENSOR_MODEL_PARALLEL_GROUP is not None, "_TENSOR_MODEL_PARALLEL_GROUP not set yet"
     return _TENSOR_MODEL_PARALLEL_GROUP
 
 def get_tensor_model_parallel_world_size():
@@ -77,7 +77,7 @@ def get_tensor_model_parallel_rank():
     return dist.get_rank(group=get_tensor_model_parallel_group())
 
 def get_data_parallel_group():
-    assert _DATA_PARALLEL_GROUP, "_DATA_PARALLEL_GROUP not set yet"
+    assert _DATA_PARALLEL_GROUP is not None, "_DATA_PARALLEL_GROUP not set yet"
     return _DATA_PARALLEL_GROUP
 
 def get_data_parallel_world_size():
@@ -104,6 +104,7 @@ def initialize_model_parallel(
     pipeline_model_parallel_split_rank: Optional[int] = None,
     context_parallel_size: int = 1,
 ):
+    
     assert dist.is_initialized(), "Please Initialize torch ddp first"
     world_size: int = dist.get_world_size()
     assert world_size % (tensor_model_parallel_size * pipeline_model_parallel_size * context_parallel_size) == 0, \
