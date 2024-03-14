@@ -25,6 +25,7 @@ def main():
     parser.add_argument('-gc', '--gradient_checkpointing', type=int, default=1)
     parser.add_argument('-mix', '--mixed_precision', type=int, default=1)
     parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--optimizer', type=str, default='adam')
     args = parser.parse_args()
 
     rank = int(os.environ['RANK'])
@@ -57,6 +58,7 @@ def main():
 
     # 微调模型
     trainer = ParallelTrainer(
+        args,
         model, 
         tokenizer, 
         gradient_checkpointing=bool(args.gradient_checkpointing), 

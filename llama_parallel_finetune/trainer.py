@@ -3,7 +3,7 @@ import os
 import torch
 from llama_parallel_finetune.utils import gpu_usage
 import copy
-from torch.optim import AdamW
+from torch.optim import AdamW, Adam, Adagrad
 from torch.cuda.amp import autocast, GradScaler, custom_fwd, custom_bwd
 from tqdm import tqdm
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -14,8 +14,12 @@ import torch.nn.functional as F
 from llama_parallel_finetune.parallel_state import initialize_model_parallel, get_data_parallel_group, get_tensor_model_parallel_group
 from llama_parallel_finetune.tensor_parallel.layers import RowParallelLinear, ColumnParallelLinear, VocabParallelEmbedding
 from llama_parallel_finetune.models.llama_tp_modelling import ParallelLlama
+import dataclasses
+from optimizer import get_optimizer
+from optimizer.optimizer_config import OptimizerConfig
 class ParallelTrainer():
-    def __init__(self, 
+    def __init__(self,
+                 args, 
                  model, 
                  tokenizer, 
                  gradient_checkpointing=False, 
@@ -28,6 +32,7 @@ class ParallelTrainer():
                  epoches=100,
                  lr=5e-5,
                  ):
+        self.args = args
         self.epoches = epoches
         self.lr = lr
         self.model = model
@@ -83,7 +88,14 @@ class ParallelTrainer():
             optimizer = AdamW(model.parameters(), lr=self.lr)
             num_training_steps = len(self.dataloader) * self.epoches
             scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
-            return optimizer, scheduler
+        else:
+            kwargs = {}
+            for f in dataclasses.fields(OptimizerConfig):
+                if hasattr(self.args, f.name):
+                    kwargs[f.name] = getattr(self.args, f.name)
+            config = OptimizerConfig(**kwargs)
+            optimizer = get_optimizer(config, model_chunks=model)
+        return optimizer, scheduler
             
 
     def train(self):    

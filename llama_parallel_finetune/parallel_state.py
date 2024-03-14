@@ -46,6 +46,11 @@ _POSITION_EMBEDDING_GLOBAL_RANKS = None
 # Memory buffers to avoid dynamic memory allocation
 _GLOBAL_MEMORY_BUFFER = None
 
+def get_model_parallel_group():
+    """Get the model parallel group the caller rank belongs to."""
+    assert _MODEL_PARALLEL_GROUP is not None, 'model parallel group is not initialized'
+    return _MODEL_PARALLEL_GROUP
+
 def _set_global_memory_buffer():
     """Initialize global buffer"""
     global _GLOBAL_MEMORY_BUFFER

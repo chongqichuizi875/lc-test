@@ -120,8 +120,11 @@ class RowParallelLinear(nn.Module):
         # A (out_features, in_features) nn.LInear的初始化是反的nn.Linear(in, out) -> shape (out, in)，所以dim=-1
         self.weight = nn.Parameter(torch.split(linear.weight, self.input_size_per_partition, dim=SplitDim['ROW'])[idx])
         setattr(self.weight, 'allreduce', True)
-        self.bias = nn.Parameter(linear.bias) if linear.bias else None
-        # setattr(self.bias, 'allreduce', True)
+        if linear.bias:
+            self.bias = nn.Parameter(linear.bias)
+            setattr(self.bias, 'allreduce', True)
+        else:
+            self.bias = None
         # setattr(self.bias, 'sequence_parallel', False)
 
     def forward(self, input_):
