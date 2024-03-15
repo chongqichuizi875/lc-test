@@ -104,22 +104,7 @@ def get_optimizer_based_on_param_groups(
         data_parallel_group_idx (int, optional): data parallel
             group index for distributed optimizer. Defaults to None.
     """
-    if config.optimizer == 'adam':
-        optimizer = Adam(
-            param_groups,
-            lr=config.lr,
-            weight_decay=config.weight_decay,
-            betas=(config.adam_beta1, config.adam_beta2),
-            eps=config.adam_eps,
-        )
-
-        def init_state_fn(opt):
-            for group in opt.param_groups:
-                for p in group['params']:
-                    if len(opt.state[p]) == 0:
-                        opt.state[p]['exp_avg'] = torch.zeros_like(p.data)
-                        opt.state[p]['exp_avg_sq'] = torch.zeros_like(p.data)
-
+    pass
 
 def get_optimizer(config, model_chunks, no_weight_decay_cond=None, scale_lr_cond=None, lr_mult=1.0):
     # Collect param groups.

@@ -15,8 +15,11 @@ from llama_parallel_finetune.parallel_state import initialize_model_parallel, ge
 from llama_parallel_finetune.tensor_parallel.layers import RowParallelLinear, ColumnParallelLinear, VocabParallelEmbedding
 from llama_parallel_finetune.models.llama_tp_modelling import ParallelLlama
 import dataclasses
+from datetime import datetime
 from optimizer import get_optimizer
 from optimizer.optimizer_config import OptimizerConfig
+from optimizer.came import CAME
+from torch.utils.tensorboard import SummaryWriter
 class ParallelTrainer():
     def __init__(self,
                  args, 
@@ -44,6 +47,7 @@ class ParallelTrainer():
         rank = int(os.environ['RANK'])
         local_rank = int(os.environ['LOCAL_RANK'])
         world_size = int(os.environ['WORLD_SIZE'])
+        self.rank = rank
 
         initialize_model_parallel(tensor_model_parallel_size=self.tp)    
 
@@ -62,10 +66,10 @@ class ParallelTrainer():
 
         self.model = DDP(self.model,
                     process_group=get_data_parallel_group())
-        
-        self.dataloader, self.sampler = self.setup_dataloader(dataset, batch_size)
-        
-        self.optimizer, self.scheduler = self.setup_optimizer(self.model, optimizer, scheduler)
+        if dataset:
+            self.dataloader, self.sampler = self.setup_dataloader(dataset, batch_size)
+            
+            self.optimizer, self.scheduler = self.setup_optimizer(self.model, optimizer, scheduler)
 
         if self.mixed_precision:
             self.scaler = GradScaler(enabled=self.mixed_precision)
@@ -85,7 +89,8 @@ class ParallelTrainer():
     
     def setup_optimizer(self, model, optimizer, scheduler):
         if not optimizer or optimizer == "default":
-            optimizer = AdamW(model.parameters(), lr=self.lr)
+            optimizer = Adagrad(model.parameters(), lr=self.lr)
+            # optimizer = CAME(model.parameters(), lr=self.lr)
             num_training_steps = len(self.dataloader) * self.epoches
             scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
         else:
@@ -99,12 +104,17 @@ class ParallelTrainer():
             
 
     def train(self):    
+        if self.args.tensorboard_path and self.rank == 0:
+            timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            writer = SummaryWriter(f'{self.args.tensorboard_path}/{timestamp}')
+        
+
         self.model.train()
         total_epoches = 100
         for epoch in range(total_epoches):
             self.sampler.set_epoch(epoch)
             with tqdm(self.dataloader, desc=f"Epoch {epoch + 1}/{total_epoches}", unit="batch", leave=False) as tepoch:
-                for batch in self.dataloader:
+                for batch_idx, batch in enumerate(self.dataloader):
                     self.optimizer.zero_grad()
                     input_ids, attention_mask = batch['input_ids'], batch['attention_mask']
                     input_ids = input_ids.to(f"cuda:{dist.get_rank()}")
@@ -112,6 +122,8 @@ class ParallelTrainer():
                     with autocast(enabled=self.mixed_precision):
                         outputs = self.model(input_ids, attention_mask, labels=input_ids)
                         loss = outputs.loss
+                        if self.args.tensorboard_path and self.rank == 0:
+                            writer.add_scalar('Loss/train', loss, epoch * len(self.dataloader) + batch_idx)
 
                     if self.mixed_precision:
                         self.scaler.scale(loss).backward()

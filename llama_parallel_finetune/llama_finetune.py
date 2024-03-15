@@ -17,15 +17,17 @@ from llama_parallel_finetune.trainer import ParallelTrainer
 import os
 import argparse
 from llama_parallel_finetune.utils import set_seed
+import time
 
 def main():
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('-tp', '--tensor_parallel', type=int, default=1)
     parser.add_argument('-pp', '--pipeline_parallel', type=int, default=1)
-    parser.add_argument('-gc', '--gradient_checkpointing', type=int, default=1)
-    parser.add_argument('-mix', '--mixed_precision', type=int, default=1)
+    parser.add_argument('-gc', '--gradient_checkpointing', type=int, default=0)
+    parser.add_argument('-mix', '--mixed_precision', type=int, default=0)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--optimizer', type=str, default='adam')
+    parser.add_argument('--tensorboard_path', type=str, default=None)
     args = parser.parse_args()
 
     rank = int(os.environ['RANK'])
@@ -65,6 +67,7 @@ def main():
         mixed_precision=bool(args.mixed_precision), 
         tp=args.tensor_parallel,
         dataset=tokenized_datasets)
+    # time.sleep(100)
     trainer.train()
 
 if __name__ == "__main__":

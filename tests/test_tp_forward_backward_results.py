@@ -40,9 +40,10 @@ model = AutoModelForCausalLM.from_config(configureation)
 model.config.use_cache = False
 # model.config.pretraining_tp = torch.cuda.device_count()
 tp = args.tensor_parallel
+args = None
 
 # 微调模型
-trainer = ParallelTrainer(model, tokenizer, gradient_checkpointing=True, mixed_precision=True, tp=tp)
+trainer = ParallelTrainer(args, model, tokenizer, gradient_checkpointing=True, mixed_precision=True, tp=tp)
 parallel_model = trainer.model
 model.to(f"cuda:{local_rank}")
 model.train()
@@ -57,7 +58,8 @@ dataset = SimpleDataset(texts, tokenizer, max_length=1024)
 sampler = DistributedSampler(dataset, num_replicas=dist.get_world_size() // tp, rank=dist.get_rank(group=get_data_parallel_group()))
 dataloader = DataLoader(dataset, batch_size=16, sampler=sampler)
 for batch in dataloader:
-    input_ids, attention_mask = batch
+    input_ids, attention_mask = batch['input_ids'], batch['attention_mask']
+    print(input_ids.shape, attention_mask.shape)
     input_ids = input_ids.to(f"cuda:{dist.get_rank()}")
     attention_mask = attention_mask.to(f"cuda:{dist.get_rank()}")
     outputs = model(input_ids, attention_mask, labels=input_ids)
